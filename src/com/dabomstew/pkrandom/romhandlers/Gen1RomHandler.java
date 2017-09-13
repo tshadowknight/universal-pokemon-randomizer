@@ -62,6 +62,9 @@ import com.dabomstew.pkrandom.pokemon.Trainer;
 import com.dabomstew.pkrandom.pokemon.TrainerPokemon;
 import com.dabomstew.pkrandom.pokemon.Type;
 import compressors.Gen1Decmp;
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
 
 public class Gen1RomHandler extends AbstractGBCRomHandler {
 
@@ -138,6 +141,8 @@ public class Gen1RomHandler extends AbstractGBCRomHandler {
         private int[] ghostMarowakOffsets = new int[0];
         private Map<Integer, Type> extraTypeLookup = new HashMap<Integer, Type>();
         private Map<Type, Integer> extraTypeReverse = new HashMap<Type, Integer>();
+        private String symbolFile = "";
+        private Map<String, String> symbolLookup = new HashMap<String, String>();
 
         private int getValue(String key) {
             if (!entries.containsKey(key)) {
@@ -284,7 +289,9 @@ public class Gen1RomHandler extends AbstractGBCRomHandler {
                                     current.extraTableFile = otherEntry.extraTableFile;
                                 }
                             }
-                        } else {
+                        } else if (r[0].equals("SymbolFile")) {
+                            current.symbolFile = r[1];
+                        }else {
                             if (r[1].startsWith("[") && r[1].endsWith("]")) {
                                 String[] offsets = r[1].substring(1, r[1].length() - 1).split(",");
                                 if (offsets.length == 1 && offsets[0].trim().isEmpty()) {
@@ -354,10 +361,34 @@ public class Gen1RomHandler extends AbstractGBCRomHandler {
         }
         return checkRomEntry(rom) != null; // so it's OK if it's a valid ROM
     }
-
+    
+    private Integer convertSymbolOffset(String symbolOffset) {
+    
+        return 1;
+    }
+    
     @Override
     public void loadedRom() {
         romEntry = checkRomEntry(this.rom);
+        if(!"".equals(romEntry.symbolFile)){
+            try {
+               FileInputStream fstream = new FileInputStream(romEntry.symbolFile);
+               BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
+
+               String strLine;
+
+                //Read File Line By Line
+               while ((strLine = br.readLine()) != null)   {
+                  String[] parts = strLine.split(" ");
+                  if(parts.length == 2){
+                       romEntry.symbolLookup.put(parts[1], parts[0]); 
+                  }
+                  romEntry.entries.put("PokedexOrder", 1);
+               }
+            } catch (IOException ex){
+                System.out.println(ex.getMessage());
+            }
+        }
         pokeNumToRBYTable = new int[256];
         pokeRBYToNumTable = new int[256];
         moveNumToRomTable = new int[256];
