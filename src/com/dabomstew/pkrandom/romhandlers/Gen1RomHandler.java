@@ -142,6 +142,7 @@ public class Gen1RomHandler extends AbstractGBCRomHandler {
         private Map<Integer, Type> extraTypeLookup = new HashMap<Integer, Type>();
         private Map<Type, Integer> extraTypeReverse = new HashMap<Type, Integer>();
         private String symbolFile = "";
+        private boolean isCompiled = false;
         private Map<String, String> symbolLookup = new HashMap<String, String>();
 
         private int getValue(String key) {
@@ -291,6 +292,7 @@ public class Gen1RomHandler extends AbstractGBCRomHandler {
                             }
                         } else if (r[0].equals("SymbolFile")) {
                             current.symbolFile = r[1];
+                            current.isCompiled = true;
                         }else {
                             if (r[1].startsWith("[") && r[1].endsWith("]")) {
                                 String[] offsets = r[1].substring(1, r[1].length() - 1).split(",");
@@ -363,8 +365,16 @@ public class Gen1RomHandler extends AbstractGBCRomHandler {
     }
     
     private Integer convertSymbolOffset(String symbolOffset) {
-    
-        return 1;
+        String[] symbolParts = symbolOffset.split(":");
+        if(symbolParts.length == 2){  
+            if(Integer.parseInt(symbolParts[0], 16) == 0){
+                return Integer.parseInt(symbolParts[1], 16);
+            } else {
+                return (Integer.parseInt(symbolParts[0], 16) * 0x4000) + (Integer.parseInt(symbolParts[1], 16) - 0x4000);  
+            }            
+        } else {
+            return -1;
+        }        
     }
     
     @Override
@@ -382,9 +392,32 @@ public class Gen1RomHandler extends AbstractGBCRomHandler {
                   String[] parts = strLine.split(" ");
                   if(parts.length == 2){
                        romEntry.symbolLookup.put(parts[1], parts[0]); 
-                  }
-                  romEntry.entries.put("PokedexOrder", 1);
+                  }                 
                }
+               romEntry.entries.put("PokedexOrder", convertSymbolOffset(romEntry.symbolLookup.get("PokedexOrder")));
+               romEntry.entries.put("PokemonNamesOffset", convertSymbolOffset(romEntry.symbolLookup.get("MonsterNames")));
+               romEntry.entries.put("PokemonStatsOffset", convertSymbolOffset(romEntry.symbolLookup.get("BaseStats")));
+               romEntry.entries.put("MewStatsOffset", convertSymbolOffset(romEntry.symbolLookup.get("MewBaseStats")));
+               romEntry.entries.put("WildPokemonTableOffset", convertSymbolOffset(romEntry.symbolLookup.get("WildDataPointers")));
+               romEntry.entries.put("OldRodOffset", convertSymbolOffset(romEntry.symbolLookup.get("GoodRodMons")) - 0x2D); // the symbol file does not seem to have a symbol for this data, but its relative offset to the good rod mon data should be consistent
+               romEntry.entries.put("GoodRodOffset", convertSymbolOffset(romEntry.symbolLookup.get("GoodRodMons")));
+               romEntry.entries.put("SuperRodTableOffset", convertSymbolOffset(romEntry.symbolLookup.get("SuperRodData")));               
+               romEntry.entries.put("MapNameTableOffset", convertSymbolOffset(romEntry.symbolLookup.get("ExternalMapEntries")));
+               romEntry.entries.put("MoveDataOffset", convertSymbolOffset(romEntry.symbolLookup.get("Moves")));
+               romEntry.entries.put("MoveNamesOffset", convertSymbolOffset(romEntry.symbolLookup.get("MoveNames")));
+               romEntry.entries.put("ItemNamesOffset", convertSymbolOffset(romEntry.symbolLookup.get("ItemNames")));
+               romEntry.entries.put("TypeEffectivenessOffset", convertSymbolOffset(romEntry.symbolLookup.get("TypeEffects")));
+               romEntry.entries.put("PokemonMovesetsTableOffset", convertSymbolOffset(romEntry.symbolLookup.get("EvosMovesPointerTable")));
+               romEntry.entries.put("TrainerDataTableOffset", convertSymbolOffset(romEntry.symbolLookup.get("TrainerDataPointers")));
+               romEntry.entries.put("ExtraTrainerMovesTableOffset", convertSymbolOffset(romEntry.symbolLookup.get("TrainerClassMoveChoiceModifications")));
+               romEntry.entries.put("GymLeaderMovesTableOffset", convertSymbolOffset(romEntry.symbolLookup.get("TrainerClassMoveChoiceModifications")));
+               romEntry.entries.put("TMMovesOffset", convertSymbolOffset(romEntry.symbolLookup.get("TechnicalMachines"))); 
+               romEntry.entries.put("MapBanks", convertSymbolOffset(romEntry.symbolLookup.get("MapHeaderBanks")));
+               romEntry.entries.put("MapAddresses", convertSymbolOffset(romEntry.symbolLookup.get("MapHeaderPointers")));    
+               int[] trainerOffsets = {-1, convertSymbolOffset(romEntry.symbolLookup.get("TrainerNames"))};
+             
+               romEntry.arrayEntries.put("TrainerClassNamesOffsets", trainerOffsets); 
+               
             } catch (IOException ex){
                 System.out.println(ex.getMessage());
             }
@@ -637,6 +670,9 @@ public class Gen1RomHandler extends AbstractGBCRomHandler {
 
     @Override
     public List<Pokemon> getStarters() {
+        if(romEntry.isCompiled){
+            return new ArrayList<>(); //not supported
+        }
         // Get the starters
         List<Pokemon> starters = new ArrayList<Pokemon>();
         starters.add(pokes[pokeRBYToNumTable[rom[romEntry.arrayEntries.get("StarterOffsets1")[0]] & 0xFF]]);
@@ -649,6 +685,9 @@ public class Gen1RomHandler extends AbstractGBCRomHandler {
 
     @Override
     public boolean setStarters(List<Pokemon> newStarters) {
+        if(romEntry.isCompiled){
+            return false; //not supported
+        }
         // Amount?
         int starterAmount = 2;
         if (!romEntry.isYellow) {
@@ -1002,7 +1041,7 @@ public class Gen1RomHandler extends AbstractGBCRomHandler {
             int tPointer = readWord(traineroffset + (i - 1) * 2);
             pointers[i] = calculateOffset(bankOf(traineroffset), tPointer);
         }
-
+        
         List<String> tcnames = getTrainerClassesForText();
 
         List<Trainer> allTrainers = new ArrayList<Trainer>();
@@ -1053,6 +1092,7 @@ public class Gen1RomHandler extends AbstractGBCRomHandler {
     }
 
     public void setTrainers(List<Trainer> trainerData) {
+        
         int traineroffset = romEntry.getValue("TrainerDataTableOffset");
         int traineramount = Gen1Constants.trainerClassCount;
         int[] trainerclasslimits = romEntry.arrayEntries.get("TrainerDataClassCounts");
@@ -1455,6 +1495,7 @@ public class Gen1RomHandler extends AbstractGBCRomHandler {
     }
 
     private List<String> getTrainerClassesForText() {
+       
         int[] offsets = romEntry.arrayEntries.get("TrainerClassNamesOffsets");
         List<String> tcNames = new ArrayList<String>();
         int offset = offsets[offsets.length - 1];
