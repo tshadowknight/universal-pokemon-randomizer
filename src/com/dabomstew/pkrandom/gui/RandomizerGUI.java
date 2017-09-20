@@ -1272,18 +1272,20 @@ public class RandomizerGUI extends javax.swing.JFrame {
     @SuppressWarnings({ "unchecked", "rawtypes" })
     private void populateDropdowns() {
         List<Pokemon> currentStarters = romHandler.getStarters();
-        List<Pokemon> allPokes = romHandler.getPokemon();
-        String[] pokeNames = new String[allPokes.size() - 1];
-        for (int i = 1; i < allPokes.size(); i++) {
-            pokeNames[i - 1] = allPokes.get(i).name;
-        }
-        this.spCustomPoke1Chooser.setModel(new DefaultComboBoxModel(pokeNames));
-        this.spCustomPoke1Chooser.setSelectedIndex(allPokes.indexOf(currentStarters.get(0)) - 1);
-        this.spCustomPoke2Chooser.setModel(new DefaultComboBoxModel(pokeNames));
-        this.spCustomPoke2Chooser.setSelectedIndex(allPokes.indexOf(currentStarters.get(1)) - 1);
-        if (!romHandler.isYellow()) {
-            this.spCustomPoke3Chooser.setModel(new DefaultComboBoxModel(pokeNames));
-            this.spCustomPoke3Chooser.setSelectedIndex(allPokes.indexOf(currentStarters.get(2)) - 1);
+        if(!currentStarters.isEmpty()){       
+            List<Pokemon> allPokes = romHandler.getPokemon();
+            String[] pokeNames = new String[allPokes.size() - 1];
+            for (int i = 1; i < allPokes.size(); i++) {
+                pokeNames[i - 1] = allPokes.get(i).name;
+            }
+            this.spCustomPoke1Chooser.setModel(new DefaultComboBoxModel(pokeNames));
+            this.spCustomPoke1Chooser.setSelectedIndex(allPokes.indexOf(currentStarters.get(0)) - 1);
+            this.spCustomPoke2Chooser.setModel(new DefaultComboBoxModel(pokeNames));
+            this.spCustomPoke2Chooser.setSelectedIndex(allPokes.indexOf(currentStarters.get(1)) - 1);
+            if (!romHandler.isYellow()) {
+                this.spCustomPoke3Chooser.setModel(new DefaultComboBoxModel(pokeNames));
+                this.spCustomPoke3Chooser.setSelectedIndex(allPokes.indexOf(currentStarters.get(2)) - 1);
+            }
         }
     }
 
